@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Corretor Local por Dicionário</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --bg-base: #111216;
+      --bg-surface: #1a1c23;
+      --bg-elevated: #232630;
+      --border: #2e3240;
+      --border-focus: #3b82f6;
+      --text-primary: #f4f4f5;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 368px;
+      margin: 0;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* Scrollbar discreta */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #333746;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #464c60;
+    }
+
+    /* Cabeçalho */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .brand-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      object-fit: cover;
+      flex-shrink: 0;
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.28);
+    }
+
+    .brand-text h1 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .stats-pill {
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.14);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Toggle Switch moderno */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #323644;
+      border-radius: 999px;
+      transition: background 0.18s ease;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      top: 3px;
+      background: #e4e4e7;
+      border-radius: 50%;
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+
+    .switch input:checked + .slider {
+      background: var(--accent);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(16px);
+      background: #ffffff;
+    }
+
+    /* Barra de controle do site atual */
+    .site-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      margin-bottom: 10px;
+    }
+
+    .site-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .site-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+
+    .site-dot.paused {
+      background: var(--warning);
+    }
+
+    .site-dot.local {
+      background: var(--text-muted);
+    }
+
+    .site-host {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .site-btn {
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      background: rgba(16, 185, 129, 0.14);
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .site-btn:hover:not(:disabled) {
+      filter: brightness(1.15);
+    }
+
+    .site-btn.paused {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.14);
+      color: #fbbf24;
+    }
+
+    .site-btn:disabled {
+      opacity: 0.55;
+      cursor: default;
+      border-color: var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+    }
+
+    /* Abas de navegação */
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 3px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      padding: 6px 8px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Cards & seções */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card:last-child {
+      margin-bottom: 0;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .muted-banner {
+      display: none;
+      padding: 7px 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.32);
+      color: #fbbf24;
+      font-size: 11.5px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .muted-banner.visible {
+      display: block;
+    }
+
+    .toggles-disabled {
+      opacity: 0.5;
+    }
+
+    /* Linhas de configurações */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(46, 50, 64, 0.55);
+    }
+
+    .setting-row:first-child {
+      padding-top: 2px;
+    }
+
+    .setting-row:last-child {
+      padding-bottom: 2px;
+      border-bottom: none;
+    }
+
+    .setting-label {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      cursor: pointer;
+    }
+
+    .setting-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .setting-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Inputs e Botões */
+    input[type="text"],
+    input[type="search"] {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-size: 12.5px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="search"]:focus {
+      border-color: var(--border-focus);
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 7px 11px;
+      border: none;
+      border-radius: 7px;
+      background: var(--accent);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, opacity 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #2c303d;
+    }
+
+    .btn-danger-ghost {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .btn-danger-ghost:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.14);
+    }
+
+    /* Playground */
+    .playground-hint {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .playground-hint code {
+      background: var(--bg-elevated);
+      padding: 1px 4px;
+      border-radius: 4px;
+      color: #93c5fd;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 10.5px;
+    }
+
+    /* Formulário de regras */
+    .rule-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .search-row {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 8px;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-base);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+
+    .filter-pill.active {
+      background: rgba(59, 130, 246, 0.18);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #93c5fd;
+    }
+
+    .rules-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .restore-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      margin-bottom: 6px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-size: 11px;
+      color: #fbbf24;
+    }
+
+    .restore-bar.visible {
+      display: flex;
+    }
+
+    .link-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #93c5fd;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .rules-list {
+      max-height: 210px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 2px;
+    }
+
+    .rule-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg-base);
+      border: 1px solid rgba(46, 50, 64, 0.7);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: border-color 0.12s ease, background 0.12s ease;
+    }
+
+    .rule-item:hover {
+      border-color: #3f4558;
+      background: #15171d;
+    }
+
+    .rule-pair {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      font-size: 12px;
+    }
+
+    .rule-wrong {
+      color: #fca5a5;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 105px;
+    }
+
+    .rule-arrow {
+      color: var(--text-muted);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .rule-right {
+      color: #86efac;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 125px;
+    }
+
+    .rule-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .rule-badge {
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .badge-custom {
+      background: rgba(59, 130, 246, 0.16);
+      color: #93c5fd;
+    }
+
+    .badge-abbr {
+      background: rgba(168, 85, 247, 0.16);
+      color: #d8b4fe;
+    }
+
+    .badge-default {
+      background: rgba(161, 161, 170, 0.14);
+      color: #a1a1aa;
+    }
+
+    .icon-del {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+
+    .icon-del:hover {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+    }
+
+    .empty-state {
+      padding: 16px 8px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Aba Dicionário */
+    .inline-add {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-height: 92px;
+      overflow-y: auto;
+    }
+
+    .word-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      font-size: 11.5px;
+      color: var(--text-primary);
+    }
+
+    .word-chip button {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .word-chip button:hover {
+      color: #f87171;
+    }
+
+    .dropzone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 11px;
+      border: 1px dashed #3f4558;
+      border-radius: 8px;
+      background: var(--bg-base);
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .dropzone:hover {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.06);
+    }
+
+    .dropzone-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .dropzone-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .dict-stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .backup-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .hidden-input {
+      display: none;
+    }
+
+    /* Toast de feedback */
+    .toast {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 7px;
+      font-size: 11.5px;
+      font-weight: 500;
+      text-align: center;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      display: none;
+    }
+
+    .toast.error {
+      background: rgba(239, 68, 68, 0.14);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    .toast.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Cabeçalho -->
+  <header class="header">
+    <div class="brand">
+      <img class="brand-icon" src="icons/icon128.png" alt="Logo Corretor Local" />
+      <div class="brand-text">
+        <h1>Corretor Local</h1>
+        <div class="brand-sub">Offline · Sem rastreamento</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="stats-pill" id="statsBadge">0 correções</span>
+      <label class="switch" title="Ativar ou pausar extensão globalmente">
+        <input type="checkbox" id="toggleEnabled" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+  </header>
+
+  <!-- Controle por site -->
+  <div class="site-bar">
+    <div class="site-info">
+      <span class="site-dot" id="siteDot"></span>
+      <span class="site-host" id="siteHostLabel">Carregando site...</span>
+    </div>
+    <button type="button" class="site-btn" id="siteToggleBtn">Ativo</button>
+  </div>
+
+  <!-- Navegação por abas -->
+  <nav class="tabs" role="tablist">
+    <button type="button" class="tab-btn active" id="tabBtnGeral" data-tab="geral">Geral</button>
+    <button type="button" class="tab-btn" id="tabBtnRegras" data-tab="regras">Regras</button>
+    <button type="button" class="tab-btn" id="tabBtnDicionario" data-tab="dicionario">Dicionário</button>
+  </nav>
+
+  <div class="muted-banner" id="globalPausedBanner">
+    Extensão pausada globalmente. Ative no interruptor acima para voltar a corrigir.
+  </div>
+
+  <!-- ABA 1: GERAL -->
+  <section class="tab-panel active" id="tabGeral">
+    <div class="card" id="togglesContainer">
+      <div class="setting-row">
+        <label class="setting-label" for="toggleAuto">
+          <span class="setting-title">Correção automática</span>
+          <span class="setting-desc">Corrige acentos e erros ao apertar espaço</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="toggleAuto" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label" for="toggleMorph">
+          <span class="setting-title">Motor morfológico (Verbos e Flexões)</span>
+          <span class="setting-desc">Conjuga verbos, plurais, gêneros, -íssimo e -mente</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="toggleMorph" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label" for="toggleAbbr">
+          <span class="setting-title">Expandir abreviações</span>
+          <span class="setting-desc">Transforma vc, tb, pq, obg, hj, blz...</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="toggleAbbr" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label" for="toggleSug">
+          <span class="setting-title">Sugestões flutuantes</span>
+          <span class="setting-desc">Setas ↓/↑ trocam na hora, Tab ou Alt+1..4</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="toggleSug" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label" for="toggleUndo">
+          <span class="setting-title">Desfazer com Backspace</span>
+          <span class="setting-desc">Apagar após correção restaura o original</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="toggleUndo" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label" for="togglePrefix">
+          <span class="setting-title">Autocompletar palavras</span>
+          <span class="setting-desc">Sugere palavras longas pelo início</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="togglePrefix" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label class="setting-label" for="toggleDoubleSpace">
+          <span class="setting-title">Ponto com espaço duplo</span>
+          <span class="setting-desc">Dois espaços seguidos inserem ". "</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="toggleDoubleSpace" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Teste Rápido (Playground)</span>
+      </div>
+      <input type="text" id="playgroundInput" placeholder="Digite aqui: vc viu a configuracao?" autocomplete="off" />
+      <div class="playground-hint">
+        Experimente <code>vc</code> + espaço, <code>probelma</code> (seta <code>↓</code> troca na hora) ou <code>Backspace</code> para desfazer.
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA 2: REGRAS & ATALHOS -->
+  <section class="tab-panel" id="tabRegras">
+    <div class="card">
+      <div class="card-title">
+        <span>Nova regra ou atalho (/snippet)</span>
+      </div>
+      <div class="rule-form">
+        <input type="text" id="wrongWord" data-no-autocorrect="true" placeholder="Errado ou /atalho" />
+        <input type="text" id="rightWord" data-no-autocorrect="true" placeholder="Correção ou texto" />
+        <button type="button" class="btn" id="addRuleBtn">Salvar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="search-row">
+        <input type="search" id="ruleSearch" data-no-autocorrect="true" placeholder="Filtrar regras ou atalhos..." />
+        <div class="filter-row">
+          <div class="filter-pills" id="ruleFilterChips">
+            <button type="button" class="filter-pill active" data-filter="all">Todas</button>
+            <button type="button" class="filter-pill" data-filter="custom">Suas</button>
+            <button type="button" class="filter-pill" data-filter="abbr">Abrev.</button>
+            <button type="button" class="filter-pill" data-filter="accent">Acentos</button>
+          </div>
+          <span class="rules-count" id="rulesCountLabel">0 regras</span>
+        </div>
+      </div>
+
+      <div class="restore-bar" id="restoreDefaultsBar">
+        <span id="disabledCountText">0 desativada(s)</span>
+        <button type="button" class="link-btn" id="restoreDefaultsBtn">Restaurar padrão</button>
+      </div>
+
+      <div class="rules-list" id="rulesList"></div>
+    </div>
+  </section>
+
+  <!-- ABA 3: DICIONÁRIO & BACKUP -->
+  <section class="tab-panel" id="tabDicionario">
+    <div class="card">
+      <div class="card-title">
+        <span>Meu Dicionário Pessoal</span>
+      </div>
+      <div class="inline-add">
+        <input type="text" id="personalWordInput" data-no-autocorrect="true" placeholder="Ex: React, Antigravity, seu nome..." />
+        <button type="button" class="btn" id="addPersonalBtn">Adicionar</button>
+      </div>
+      <div class="chips-wrap" id="personalWordsChips"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Dicionário Externo (.txt / .dic)</span>
+        <span class="rules-count" id="dictTotalBadge">0 palavras</span>
+      </div>
+      <label class="dropzone" for="dictFile" id="dictFileLabel">
+        <span class="dropzone-title">Selecionar arquivo .txt ou .dic</span>
+        <span class="dropzone-sub">Suporta listas simples ou formato Hunspell (/flags)</span>
+      </label>
+      <input type="file" id="dictFile" class="hidden-input" accept=".txt,.dic" />
+      <div class="dict-stats-row">
+        <span id="dictBreakdownText">Nativas: 0 · Pessoais: 0 · Importadas: 0</span>
+        <button type="button" class="btn btn-danger-ghost" id="clearImportedBtn" style="display: none;">Limpar importadas</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Backup de configurações e regras</span>
+      </div>
+      <div class="backup-actions">
+        <button type="button" class="btn btn-secondary" id="exportBackupBtn">Exportar Backup</button>
+        <button type="button" class="btn btn-secondary" id="importBackupBtn">Importar Backup</button>
+      </div>
+      <input type="file" id="backupFile" class="hidden-input" accept=".json" />
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="morphology.js" defer></script>
+  <script src="dictionary.js" defer></script>
+  <script src="content.js" defer></script>
+  <script src="popup.js" defer></script>
+</body>
+</html>
